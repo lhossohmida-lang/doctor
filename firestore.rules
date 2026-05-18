@@ -89,11 +89,16 @@ service cloud.firestore {
         && (
           (
             !exists(/databases/$(database)/documents/publicQueue/$(date))
+            && !exists(/databases/$(database)/documents/dailyCounters/$(date))
             && request.resource.data.lastNumber == 1
           )
           || (
             exists(/databases/$(database)/documents/publicQueue/$(date))
             && request.resource.data.lastNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.lastNumber + 1
+          )
+          || (
+            exists(/databases/$(database)/documents/dailyCounters/$(date))
+            && request.resource.data.lastNumber == get(/databases/$(database)/documents/dailyCounters/$(date)).data.lastNumber + 1
           )
         )
         && request.resource.data.lastPatientId is string
@@ -107,10 +112,53 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
         && request.resource.data.date == resource.data.date
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.lastNumber == resource.data.lastNumber + 1
+        && request.resource.data.lastNumber > resource.data.lastNumber
+        && (
+          request.resource.data.lastNumber == resource.data.lastNumber + 1
+          || (
+            exists(/databases/$(database)/documents/publicQueue/$(date))
+            && request.resource.data.lastNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.lastNumber + 1
+          )
+          || (
+            exists(/databases/$(database)/documents/dailyCounters/$(date))
+            && request.resource.data.lastNumber == get(/databases/$(database)/documents/dailyCounters/$(date)).data.lastNumber + 1
+          )
+        )
         && request.resource.data.lastPatientId is string
         && request.resource.data.updatedAt == request.time
         && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == request.resource.data.lastNumber;
+    }
+
+    function dailyCounterFields() {
+      return ["date", "lastNumber", "currentCalledNumber", "currentPatientId", "createdAt", "updatedAt"];
+    }
+
+    function validPublicDailyCounterCreate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(dailyCounterFields())
+        && request.resource.data.date == date
+        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
+        && request.resource.data.currentCalledNumber is int
+        && request.resource.data.currentCalledNumber >= 0
+        && (
+          !exists(/databases/$(database)/documents/publicQueue/$(date))
+          || request.resource.data.currentCalledNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.currentCalledNumber
+        )
+        && request.resource.data.currentPatientId == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validPublicDailyCounterUpdate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(dailyCounterFields())
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
+        && request.resource.data.currentPatientId == resource.data.currentPatientId
+        && request.resource.data.lastNumber > resource.data.lastNumber
+        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
+        && request.resource.data.updatedAt == request.time;
     }
 
     function validPublicTicketCreate(date, bookingCode) {
@@ -172,7 +220,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(publicQueueFields())
         && request.resource.data.date == resource.data.date
         && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
-        && request.resource.data.lastNumber == resource.data.lastNumber + 1
+        && request.resource.data.lastNumber > resource.data.lastNumber
+        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
         && request.resource.data.waitingCount == resource.data.waitingCount + 1
         && (!("nextNumber" in resource.data) || resource.data.nextNumber == null || request.resource.data.nextNumber == resource.data.nextNumber)
         && (!("callToken" in resource.data) || request.resource.data.callToken == resource.data.callToken)
@@ -187,7 +236,10 @@ service cloud.firestore {
     }
 
     match /dailyCounters/{date} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isAdmin() || validPublicDailyCounterCreate(date);
+      allow update: if isAdmin() || validPublicDailyCounterUpdate(date);
+      allow delete: if isAdmin();
     }
 
     match /queueCounters/{date} {

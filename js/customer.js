@@ -40,6 +40,7 @@ function collectElements() {
 }
 
 const refs = {
+  dailyCounter: (dateKey) => doc(db, "dailyCounters", dateKey),
   queueCounter: (dateKey) => doc(db, "queueCounters", dateKey),
   publicQueue: (dateKey) => doc(db, "publicQueue", dateKey),
   patients: (dateKey) => collection(db, "appointments", dateKey, "patients"),
@@ -136,16 +137,20 @@ async function registerPublicPatient(phone) {
   const qrValue = buildTrackingUrl(dateKey, bookingCode);
 
   return runTransaction(db, async (transaction) => {
+    const dailyCounterRef = refs.dailyCounter(dateKey);
     const counterRef = refs.queueCounter(dateKey);
     const publicQueueRef = refs.publicQueue(dateKey);
+    const dailyCounterSnapshot = await transaction.get(dailyCounterRef);
     const counterSnapshot = await transaction.get(counterRef);
     const publicQueueSnapshot = await transaction.get(publicQueueRef);
+    const dailyCounterData = dailyCounterSnapshot.exists() ? dailyCounterSnapshot.data() : {};
     const queueData = publicQueueSnapshot.exists() ? publicQueueSnapshot.data() : {};
+    const dailyLastNumber = Number(dailyCounterData.lastNumber || 0);
     const counterLastNumber = Number(counterSnapshot.exists() ? counterSnapshot.data().lastNumber || 0 : 0);
     const publicLastNumber = Number(queueData.lastNumber || 0);
-    const lastNumber = Math.max(counterLastNumber, publicLastNumber);
+    const lastNumber = Math.max(dailyLastNumber, counterLastNumber, publicLastNumber);
     const queueNumber = lastNumber + 1;
-    const currentCalledNumber = Number(queueData.currentCalledNumber || 0);
+    const currentCalledNumber = Number(dailyCounterData.currentCalledNumber || queueData.currentCalledNumber || 0);
     const waitingCount = Number(queueData.waitingCount || 0) + 1;
 
     const patientData = {
@@ -187,6 +192,18 @@ async function registerPublicPatient(phone) {
         phoneKey: key,
         bookingCodes: arrayUnion(bookingCode),
         lastBookingCode: bookingCode,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    transaction.set(
+      dailyCounterRef,
+      {
+        date: dateKey,
+        lastNumber: queueNumber,
+        currentCalledNumber,
+        currentPatientId: dailyCounterData.currentPatientId || null,
+        ...(dailyCounterSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
         updatedAt: serverTimestamp(),
       },
       { merge: true },
