@@ -18,8 +18,16 @@
         <h1>خذ رقمك اليوم</h1>
         <form id="phoneLookupForm" class="lookup-form">
           <label>
+            الاسم الكامل
+            <input id="customerFullName" type="text" autocomplete="name" required placeholder="اكتب اسمك الكامل" maxlength="80" />
+          </label>
+          <label>
             رقم الهاتف
             <input id="lookupPhone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="0550000000" />
+          </label>
+          <label>
+            سبب الزيارة أو المرض
+            <textarea id="customerDisease" required placeholder="مثال: فحص عام، ألم، متابعة علاج..." maxlength="160"></textarea>
           </label>
           <button id="customerSubmitButton" class="btn btn-primary full" type="submit">الحصول على رقم الدور</button>
         </form>

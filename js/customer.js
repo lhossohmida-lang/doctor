@@ -32,7 +32,9 @@ const elements = {};
 
 function collectElements() {
   elements.form = document.getElementById("phoneLookupForm");
+  elements.fullName = document.getElementById("customerFullName");
   elements.phone = document.getElementById("lookupPhone");
+  elements.disease = document.getElementById("customerDisease");
   elements.submitButton = document.getElementById("customerSubmitButton");
   elements.message = document.getElementById("customerMessage");
   elements.results = document.getElementById("trackingResults");
@@ -127,10 +129,12 @@ function renderTickets() {
   });
 }
 
-async function registerPublicPatient(phone) {
+async function registerPublicPatient({ fullName, phone, disease }) {
   const dateKey = getAlgiersDateKey();
   const cleanPhone = normalizePhone(phone);
   const key = phoneLookupKey(cleanPhone);
+  const cleanFullName = fullName.trim();
+  const cleanDisease = disease.trim();
   const patientDoc = doc(refs.patients(dateKey));
   const patientId = patientDoc.id;
   const bookingCode = generateBookingCode(dateKey);
@@ -156,11 +160,11 @@ async function registerPublicPatient(phone) {
     const patientData = {
       patientId,
       bookingCode,
-      fullName: "زبون العيادة",
+      fullName: cleanFullName,
       phone: cleanPhone,
       phoneKey: key,
       queueNumber,
-      disease: "",
+      disease: cleanDisease,
       amountPaid: 0,
       paymentStatus: "unpaid",
       status: "waiting",
@@ -174,7 +178,7 @@ async function registerPublicPatient(phone) {
     const publicTicket = {
       patientId,
       bookingCode,
-      fullName: "زبون العيادة",
+      fullName: cleanFullName,
       phoneKey: key,
       queueNumber,
       status: "waiting",
@@ -236,10 +240,22 @@ async function registerPublicPatient(phone) {
   });
 }
 
-async function findOrRegisterByPhone(phone) {
+async function findOrRegisterByPhone({ fullName, phone, disease }) {
   const key = phoneLookupKey(phone);
+  const cleanFullName = fullName.trim();
+  const cleanDisease = disease.trim();
   if (!key) {
     setMessage(elements.message, "يرجى إدخال رقم هاتف صحيح.", "error");
+    return;
+  }
+
+  if (!cleanFullName || cleanFullName.length < 3) {
+    setMessage(elements.message, "يرجى إدخال الاسم الكامل.", "error");
+    return;
+  }
+
+  if (!cleanDisease || cleanDisease.length < 2) {
+    setMessage(elements.message, "يرجى إدخال سبب الزيارة أو المرض.", "error");
     return;
   }
 
@@ -255,7 +271,11 @@ async function findOrRegisterByPhone(phone) {
 
     if (!bookingCodes.length) {
       setMessage(elements.message, "لم نجد رقمًا لهذا الهاتف اليوم. جاري إنشاء دور جديد...");
-      const ticket = await registerPublicPatient(phone);
+      const ticket = await registerPublicPatient({
+        fullName: cleanFullName,
+        phone,
+        disease: cleanDisease,
+      });
       bookingCodes = [ticket.bookingCode];
       setMessage(elements.message, `تم إنشاء رقمك بنجاح. رقم الدور ${ticket.queueNumber}.`, "success");
     } else {
@@ -312,6 +332,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
-    findOrRegisterByPhone(elements.phone.value);
+    findOrRegisterByPhone({
+      fullName: elements.fullName.value,
+      phone: elements.phone.value,
+      disease: elements.disease.value,
+    });
   });
 });

@@ -32,6 +32,11 @@
   gap: 14px;
 }
 
+.lookup-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .tracking-card {
   display: grid;
   gap: 18px;

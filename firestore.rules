@@ -63,14 +63,18 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(publicAppointmentFields())
         && request.resource.data.patientId == patientId
         && request.resource.data.date == date
-        && request.resource.data.fullName == "زبون العيادة"
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 3
+        && request.resource.data.fullName.size() <= 80
         && request.resource.data.phone is string
         && request.resource.data.phoneKey is string
         && request.resource.data.phoneKey.matches("^[0-9]{6,18}$")
         && request.resource.data.bookingCode is string
         && request.resource.data.queueNumber is int
         && request.resource.data.queueNumber > 0
-        && request.resource.data.disease == ""
+        && request.resource.data.disease is string
+        && request.resource.data.disease.size() >= 2
+        && request.resource.data.disease.size() <= 160
         && request.resource.data.amountPaid == 0
         && request.resource.data.paymentStatus == "unpaid"
         && request.resource.data.status == "waiting"
@@ -177,7 +181,9 @@ service cloud.firestore {
         ])
         && request.resource.data.bookingCode == bookingCode
         && request.resource.data.date == date
-        && request.resource.data.fullName == "زبون العيادة"
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 3
+        && request.resource.data.fullName.size() <= 80
         && request.resource.data.phoneKey is string
         && request.resource.data.phoneKey.matches("^[0-9]{6,18}$")
         && request.resource.data.queueNumber is int
