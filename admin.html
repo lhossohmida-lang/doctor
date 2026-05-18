@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>لوحة الإدارة | عيادة الطبيب</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script type="module" src="js/admin.js"></script>
+  </head>
+  <body class="admin-page">
+    <div id="authLoading" class="loading-cover">جاري التحقق من صلاحية الدخول...</div>
+
+    <header class="app-topbar">
+      <div>
+        <p class="eyebrow">لوحة تحكم العيادة</p>
+        <h1>إدارة مواعيد اليوم</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="adminEmail" class="user-chip"></span>
+        <button id="signOutButton" class="btn btn-light" type="button">تسجيل الخروج</button>
+      </div>
+    </header>
+
+    <main class="admin-layout">
+      <section class="date-strip" aria-label="اختيار التاريخ">
+        <label>
+          تاريخ العرض
+          <input id="workDate" type="date" />
+        </label>
+        <p id="dateNotice" class="muted"></p>
+      </section>
+
+      <section class="stats-grid" aria-label="إحصائيات اليوم">
+        <article class="stat-card">
+          <span>المسجلون</span>
+          <strong id="statTotal">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>في الانتظار</span>
+          <strong id="statWaiting">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>تم استدعاؤهم</span>
+          <strong id="statCalled">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>مكتملون</span>
+          <strong id="statCompleted">0</strong>
+        </article>
+        <article class="stat-card">
+          <span>المبالغ المدفوعة</span>
+          <strong id="statPaid">0 دج</strong>
+        </article>
+        <article class="stat-card accent">
+          <span>الرقم الحالي</span>
+          <strong id="statCurrent">0</strong>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel queue-panel">
+          <div class="panel-head">
+            <h2>التحكم في الدور الحالي</h2>
+            <span id="queueDateLabel" class="muted"></span>
+          </div>
+          <div class="current-number-box">
+            <span>الرقم الحالي</span>
+            <strong id="currentNumber">0</strong>
+          </div>
+          <div class="action-grid">
+            <button id="callNextButton" class="btn btn-primary" type="button">استدعاء التالي</button>
+            <button id="recallButton" class="btn btn-secondary" type="button">إعادة النداء</button>
+            <button id="skipCurrentButton" class="btn btn-warning" type="button">تخطي الرقم</button>
+            <button id="finishCurrentButton" class="btn btn-success" type="button">إنهاء الحالة الحالية</button>
+          </div>
+          <p id="queueMessage" class="form-message" role="status"></p>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h2>تسجيل زبون جديد</h2>
+            <span class="muted">الترقيم يومي وتلقائي</span>
+          </div>
+          <form id="patientForm" class="admin-form">
+            <label>
+              الاسم الكامل
+              <input id="fullName" type="text" required placeholder="مثال: محمد بن علي" />
+            </label>
+            <label>
+              رقم الهاتف
+              <input id="phone" type="tel" required placeholder="0550000000" />
+            </label>
+            <label>
+              المرض أو سبب الزيارة
+              <input id="disease" type="text" placeholder="فحص عام" />
+            </label>
+            <label>
+              المبلغ المدفوع
+              <input id="amountPaid" type="number" min="0" step="50" value="0" />
+            </label>
+            <label>
+              حالة الدفع
+              <select id="paymentStatus">
+                <option value="paid">مدفوع</option>
+                <option value="unpaid">غير مدفوع</option>
+                <option value="partial">دفع جزئي</option>
+              </select>
+            </label>
+            <button id="registerButton" class="btn btn-primary full" type="submit">تسجيل الزبون</button>
+            <p id="registerMessage" class="form-message" role="status"></p>
+          </form>
+        </article>
+      </section>
+
+      <section class="panel ticket-panel" aria-label="بطاقة آخر زبون">
+        <div class="panel-head">
+          <h2>بطاقة الطباعة</h2>
+          <button id="printLatestButton" class="btn btn-secondary" type="button" disabled>طباعة البطاقة</button>
+        </div>
+        <div id="ticketPreview" class="ticket-empty">ستظهر بطاقة الزبون هنا بعد التسجيل أو عند اختيار طباعة من الجدول.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head table-head">
+          <h2>زبائن اليوم</h2>
+          <div class="table-tools">
+            <input id="searchName" type="search" placeholder="بحث بالاسم" />
+            <input id="searchPhone" type="search" placeholder="بحث بالهاتف" />
+            <select id="statusFilter">
+              <option value="">كل الحالات</option>
+              <option value="waiting">في الانتظار</option>
+              <option value="called">تم النداء</option>
+              <option value="inside">داخل المكتب</option>
+              <option value="completed">انتهى</option>
+              <option value="skipped">تم التخطي</option>
+              <option value="cancelled">ملغى</option>
+            </select>
+            <select id="paymentFilter">
+              <option value="">كل الدفع</option>
+              <option value="paid">مدفوع</option>
+              <option value="unpaid">غير مدفوع</option>
+              <option value="partial">دفع جزئي</option>
+            </select>
+            <select id="sortOrder">
+              <option value="asc">الأصغر أولًا</option>
+              <option value="desc">الأكبر أولًا</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="patients-table">
+            <thead>
+              <tr>
+                <th>الدور</th>
+                <th>الاسم</th>
+                <th>الهاتف</th>
+                <th>سبب الزيارة</th>
+                <th>المبلغ</th>
+                <th>الدفع</th>
+                <th>الحالة</th>
+                <th>QR</th>
+                <th>وقت التسجيل</th>
+                <th>التحكم</th>
+              </tr>
+            </thead>
+            <tbody id="patientsTbody">
+              <tr>
+                <td colspan="10" class="empty-row">لا توجد بيانات بعد</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="editDialog" class="edit-dialog">
+      <form id="editForm" method="dialog" class="admin-form">
+        <div class="panel-head">
+          <h2>تعديل بيانات الزبون</h2>
+          <button class="icon-close" type="button" aria-label="إغلاق">×</button>
+        </div>
+        <input id="editPatientId" type="hidden" />
+        <label>
+          الاسم الكامل
+          <input id="editFullName" type="text" required />
+        </label>
+        <label>
+          رقم الهاتف
+          <input id="editPhone" type="tel" required />
+        </label>
+        <label>
+          المرض أو سبب الزيارة
+          <input id="editDisease" type="text" />
+        </label>
+        <label>
+          المبلغ المدفوع
+          <input id="editAmountPaid" type="number" min="0" step="50" />
+        </label>
+        <label>
+          حالة الدفع
+          <select id="editPaymentStatus">
+            <option value="paid">مدفوع</option>
+            <option value="unpaid">غير مدفوع</option>
+            <option value="partial">دفع جزئي</option>
+          </select>
+        </label>
+        <button class="btn btn-primary full" type="submit">حفظ التعديلات</button>
+        <p id="editMessage" class="form-message" role="status"></p>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+    <section id="printArea" aria-hidden="true"></section>
+  </body>
+</html>

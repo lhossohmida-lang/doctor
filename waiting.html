@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>شاشة الانتظار | عيادة الطبيب</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/waiting.css" />
+    <script type="module" src="js/waiting.js"></script>
+  </head>
+  <body class="waiting-page">
+    <div id="authLoading" class="loading-cover">جاري التحقق من صلاحية الدخول...</div>
+
+    <header class="waiting-header">
+      <div>
+        <p class="eyebrow">عيادة الطبيب</p>
+        <h1>صالة الانتظار</h1>
+      </div>
+      <div class="waiting-actions">
+        <span id="waitingDate" class="date-pill"></span>
+        <button id="soundToggle" class="btn btn-light" type="button">تشغيل الصوت</button>
+        <button id="signOutButton" class="btn btn-outline-light" type="button">خروج</button>
+      </div>
+    </header>
+
+    <main class="waiting-stage">
+      <section class="number-board" aria-live="polite">
+        <span class="board-label">الرقم الحالي</span>
+        <strong id="calledNumber" class="called-number">0</strong>
+        <p id="callText" class="call-text">في انتظار أول نداء</p>
+      </section>
+      <section class="waiting-metrics" aria-label="معلومات الانتظار">
+        <article>
+          <span>الرقم التالي</span>
+          <strong id="nextNumber">-</strong>
+        </article>
+        <article>
+          <span>عدد المنتظرين</span>
+          <strong id="waitingCount">0</strong>
+        </article>
+        <article>
+          <span>آخر رقم مسجل</span>
+          <strong id="lastNumber">0</strong>
+        </article>
+      </section>
+    </main>
+
+    <p id="waitingMessage" class="waiting-message" role="status"></p>
+  </body>
+</html>

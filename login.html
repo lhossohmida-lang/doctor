@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>تسجيل الدخول | عيادة الطبيب</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body class="login-page">
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="loginTitle">
+        <a class="back-link" href="index.html">العودة للرئيسية</a>
+        <div class="brand-mark small" aria-hidden="true">+</div>
+        <p class="eyebrow">دخول آمن</p>
+        <h1 id="loginTitle">تسجيل الدخول</h1>
+
+        <div class="role-tabs" role="tablist" aria-label="نوع الدخول">
+          <button class="role-tab active" type="button" data-role-choice="admin">الإدارة</button>
+          <button class="role-tab" type="button" data-role-choice="waiting">شاشة الانتظار</button>
+        </div>
+
+        <form id="loginForm" class="stack-form" autocomplete="on">
+          <input type="hidden" id="targetRole" value="admin" />
+          <label>
+            البريد الإلكتروني
+            <input id="email" type="email" autocomplete="email" required placeholder="admin@example.com" />
+          </label>
+          <label>
+            كلمة السر
+            <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+          </label>
+          <button class="btn btn-primary full" type="submit" id="loginButton">دخول</button>
+          <p id="authMessage" class="form-message" role="status"></p>
+        </form>
+      </section>
+    </main>
+    <script type="module" src="js/auth.js"></script>
+  </body>
+</html>
