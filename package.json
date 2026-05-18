@@ -1,0 +1,17 @@
+{
+  "name": "doctor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Doctor queue management web app with Firebase, QR tickets, and RTL Arabic UI.",
+  "scripts": {
+    "start": "node server.cjs",
+    "dev": "node server.cjs"
+  },
+  "keywords": [
+    "firebase",
+    "doctor",
+    "queue",
+    "rtl"
+  ],
+  "license": "UNLICENSED"
+}

@@ -125,7 +125,27 @@ firebase deploy --only firestore:rules --project doctor-14c38
 
 ## التشغيل محليًا
 
-لأن التطبيق يستخدم ES Modules من CDN، شغله عبر خادم محلي بدل فتح الملفات مباشرة:
+لأن التطبيق يستخدم ES Modules من CDN، شغله عبر خادم محلي بدل فتح الملفات مباشرة.
+
+باستخدام npm:
+
+```bash
+npm start
+```
+
+ثم افتح:
+
+```text
+http://127.0.0.1:8000
+```
+
+إذا كان المنفذ 8000 مستخدمًا على Windows PowerShell:
+
+```powershell
+$env:PORT=8001; npm start
+```
+
+أو يمكن تشغيله بأي خادم ثابت آخر:
 
 ```bash
 python -m http.server 8000
