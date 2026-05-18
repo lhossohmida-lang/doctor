@@ -313,7 +313,7 @@ async function refreshPublicQueueSummary(dateKey = state.dateKey) {
     {
       date: dateKey,
       currentCalledNumber: Number(counter.currentCalledNumber || 0),
-      lastNumber: Number(counter.lastNumber || maxQueue || 0),
+      lastNumber: Math.max(Number(counter.lastNumber || 0), maxQueue),
       waitingCount: waitingPatients.length,
       nextNumber: nextPatient?.queueNumber || null,
       updatedAt: serverTimestamp(),

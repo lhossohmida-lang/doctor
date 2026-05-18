@@ -13,5 +13,16 @@
     "queue",
     "rtl"
   ],
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhossohmida-lang/doctor.git"
+  },
+  "author": "",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lhossohmida-lang/doctor/issues"
+  },
+  "homepage": "https://github.com/lhossohmida-lang/doctor#readme"
 }

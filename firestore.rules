@@ -91,37 +91,9 @@ service cloud.firestore {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
         && request.resource.data.date == resource.data.date
-        && request.resource.data.createdAt == resource.data.createdAt
+        && (!("createdAt" in resource.data) || request.resource.data.createdAt == resource.data.createdAt)
         && request.resource.data.lastNumber > resource.data.lastNumber
         && request.resource.data.lastPatientId is string
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function dailyCounterFields() {
-      return ["date", "lastNumber", "currentCalledNumber", "currentPatientId", "createdAt", "updatedAt"];
-    }
-
-    function validPublicDailyCounterCreate(date) {
-      return isPublicRegistration()
-        && request.resource.data.keys().hasOnly(dailyCounterFields())
-        && request.resource.data.date == date
-        && request.resource.data.lastNumber is int
-        && request.resource.data.lastNumber > 0
-        && request.resource.data.currentCalledNumber is int
-        && request.resource.data.currentCalledNumber >= 0
-        && request.resource.data.currentPatientId == null
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time;
-    }
-
-    function validPublicDailyCounterUpdate() {
-      return isPublicRegistration()
-        && request.resource.data.keys().hasOnly(dailyCounterFields())
-        && request.resource.data.date == resource.data.date
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
-        && request.resource.data.currentPatientId == resource.data.currentPatientId
-        && request.resource.data.lastNumber > resource.data.lastNumber
         && request.resource.data.updatedAt == request.time;
     }
 
@@ -157,8 +129,8 @@ service cloud.firestore {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["phoneKey", "bookingCodes", "lastBookingCode", "updatedAt"])
         && request.resource.data.phoneKey == phoneKey
-        && request.resource.data.bookingCodes is list
-        && request.resource.data.bookingCodes.size() <= 25
+        && (!("bookingCodes" in request.resource.data) || request.resource.data.bookingCodes is list)
+        && (!("bookingCodes" in request.resource.data) || request.resource.data.bookingCodes.size() <= 25)
         && request.resource.data.lastBookingCode is string
         && request.resource.data.updatedAt == request.time;
     }
@@ -201,8 +173,7 @@ service cloud.firestore {
 
     match /dailyCounters/{date} {
       allow read: if isAdmin();
-      allow create: if isAdmin() || validPublicDailyCounterCreate(date);
-      allow update: if isAdmin() || validPublicDailyCounterUpdate();
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 

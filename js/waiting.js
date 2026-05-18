@@ -123,27 +123,68 @@ function buildCallMessage(number) {
   return `الرقم ${numberToArabicWords(number)} يتفضل`;
 }
 
+let audioCtx = null;
+function playBell() {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    // Attention bell sound
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime); // G5
+    osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.2); // C6
+
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+    gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.2);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.9);
+  } catch (err) {
+    console.warn("AudioContext bell failed", err);
+  }
+}
+
 function speakText(text, force = false) {
   if ((!state.soundEnabled && !force) || !text) return false;
+
+  playBell();
+
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-    elements.message.textContent = "الصوت غير مدعوم في هذا المتصفح.";
+    if (elements.message) elements.message.textContent = "الصوت غير مدعوم في هذا المتصفح.";
     return false;
   }
 
   loadVoices();
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.resume?.();
+  // إزالة cancel() و resume() لأنها تسبب مشكلة صمت تام في بعض المتصفحات مثل سفاري وكروم
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "ar-DZ";
+  window._lastUtterance = utterance; // لمنع مسح المتغير من الذاكرة (Garbage Collection)
+  
+  // استخدام ar-SA بدلا من ar-DZ لأنه مدعوم بشكل أوسع في جميع أنظمة التشغيل
+  utterance.lang = "ar-SA";
   utterance.rate = 0.82;
   utterance.pitch = 1;
   const voice = chooseArabicVoice();
   if (voice) utterance.voice = voice;
-  utterance.onerror = () => {
-    elements.message.textContent = "تعذر تشغيل الصوت. اضغط تشغيل الصوت مرة أخرى.";
+  
+  utterance.onerror = (e) => {
+    console.warn("SpeechSynthesis error:", e);
+    if (elements.message) elements.message.textContent = "تعذر تشغيل الصوت. حاول مرة أخرى.";
   };
+  
   window.speechSynthesis.speak(utterance);
+  
   return true;
 }
 
