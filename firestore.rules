@@ -73,56 +73,28 @@ service cloud.firestore {
         && request.resource.data.source == "customer"
         && request.resource.data.qrValue is string
         && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == request.resource.data.queueNumber
-        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastPatientId == patientId;
+        && request.resource.data.updatedAt == request.time;
     }
 
     function validPublicQueueCounterCreate(date) {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
         && request.resource.data.date == date
-        && (
-          (
-            !exists(/databases/$(database)/documents/publicQueue/$(date))
-            && !exists(/databases/$(database)/documents/dailyCounters/$(date))
-            && request.resource.data.lastNumber == 1
-          )
-          || (
-            exists(/databases/$(database)/documents/publicQueue/$(date))
-            && request.resource.data.lastNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.lastNumber + 1
-          )
-          || (
-            exists(/databases/$(database)/documents/dailyCounters/$(date))
-            && request.resource.data.lastNumber == get(/databases/$(database)/documents/dailyCounters/$(date)).data.lastNumber + 1
-          )
-        )
+        && request.resource.data.lastNumber is int
+        && request.resource.data.lastNumber > 0
         && request.resource.data.lastPatientId is string
         && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == request.resource.data.lastNumber;
+        && request.resource.data.updatedAt == request.time;
     }
 
-    function validPublicQueueCounterUpdate(date) {
+    function validPublicQueueCounterUpdate() {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
         && request.resource.data.date == resource.data.date
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.lastNumber > resource.data.lastNumber
-        && (
-          request.resource.data.lastNumber == resource.data.lastNumber + 1
-          || (
-            exists(/databases/$(database)/documents/publicQueue/$(date))
-            && request.resource.data.lastNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.lastNumber + 1
-          )
-          || (
-            exists(/databases/$(database)/documents/dailyCounters/$(date))
-            && request.resource.data.lastNumber == get(/databases/$(database)/documents/dailyCounters/$(date)).data.lastNumber + 1
-          )
-        )
         && request.resource.data.lastPatientId is string
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == request.resource.data.lastNumber;
+        && request.resource.data.updatedAt == request.time;
     }
 
     function dailyCounterFields() {
@@ -133,19 +105,16 @@ service cloud.firestore {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(dailyCounterFields())
         && request.resource.data.date == date
-        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
+        && request.resource.data.lastNumber is int
+        && request.resource.data.lastNumber > 0
         && request.resource.data.currentCalledNumber is int
         && request.resource.data.currentCalledNumber >= 0
-        && (
-          !exists(/databases/$(database)/documents/publicQueue/$(date))
-          || request.resource.data.currentCalledNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.currentCalledNumber
-        )
         && request.resource.data.currentPatientId == null
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
     }
 
-    function validPublicDailyCounterUpdate(date) {
+    function validPublicDailyCounterUpdate() {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(dailyCounterFields())
         && request.resource.data.date == resource.data.date
@@ -153,7 +122,6 @@ service cloud.firestore {
         && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
         && request.resource.data.currentPatientId == resource.data.currentPatientId
         && request.resource.data.lastNumber > resource.data.lastNumber
-        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
         && request.resource.data.updatedAt == request.time;
     }
 
@@ -182,19 +150,17 @@ service cloud.firestore {
         && request.resource.data.status == "waiting"
         && request.resource.data.qrValue is string
         && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.patientId)).data.bookingCode == bookingCode;
+        && request.resource.data.updatedAt == request.time;
     }
 
-    function validPublicLookupWrite(date, phoneKey) {
+    function validPublicLookupWrite(phoneKey) {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["phoneKey", "bookingCodes", "lastBookingCode", "updatedAt"])
         && request.resource.data.phoneKey == phoneKey
         && request.resource.data.bookingCodes is list
         && request.resource.data.bookingCodes.size() <= 25
         && request.resource.data.lastBookingCode is string
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/publicTickets/$(date)/tickets/$(request.resource.data.lastBookingCode)).data.phoneKey == phoneKey;
+        && request.resource.data.updatedAt == request.time;
     }
 
     function publicQueueFields() {
@@ -206,25 +172,25 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(publicQueueFields())
         && request.resource.data.date == date
         && request.resource.data.currentCalledNumber == 0
-        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
-        && request.resource.data.waitingCount == 1
+        && request.resource.data.lastNumber is int
+        && request.resource.data.lastNumber > 0
+        && request.resource.data.waitingCount is int
+        && request.resource.data.waitingCount >= 1
         && request.resource.data.nextNumber == request.resource.data.lastNumber
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber > 0;
+        && request.resource.data.updatedAt == request.time;
     }
 
-    function validPublicQueueUpdate(date) {
+    function validPublicQueueUpdate() {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(publicQueueFields())
         && request.resource.data.date == resource.data.date
         && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
         && request.resource.data.lastNumber > resource.data.lastNumber
-        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
-        && request.resource.data.waitingCount == resource.data.waitingCount + 1
+        && request.resource.data.waitingCount is int
+        && request.resource.data.waitingCount >= resource.data.waitingCount
         && (!("nextNumber" in resource.data) || resource.data.nextNumber == null || request.resource.data.nextNumber == resource.data.nextNumber)
         && (!("callToken" in resource.data) || request.resource.data.callToken == resource.data.callToken)
-        && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == request.resource.data.lastNumber;
+        && request.resource.data.updatedAt == request.time;
     }
 
     match /users/{uid} {
@@ -236,7 +202,7 @@ service cloud.firestore {
     match /dailyCounters/{date} {
       allow read: if isAdmin();
       allow create: if isAdmin() || validPublicDailyCounterCreate(date);
-      allow update: if isAdmin() || validPublicDailyCounterUpdate(date);
+      allow update: if isAdmin() || validPublicDailyCounterUpdate();
       allow delete: if isAdmin();
     }
 
@@ -244,7 +210,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if isAdmin() || validPublicQueueCounterCreate(date);
-      allow update: if isAdmin() || validPublicQueueCounterUpdate(date);
+      allow update: if isAdmin() || validPublicQueueCounterUpdate();
       allow delete: if isAdmin();
     }
 
@@ -257,7 +223,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if isAdmin() || validPublicQueueCreate(date);
-      allow update: if isAdmin() || validPublicQueueUpdate(date);
+      allow update: if isAdmin() || validPublicQueueUpdate();
       allow delete: if isAdmin();
     }
 
@@ -271,7 +237,7 @@ service cloud.firestore {
     match /publicLookups/{date}/phones/{phoneKey} {
       allow get: if true;
       allow list: if false;
-      allow create, update: if isAdmin() || validPublicLookupWrite(date, phoneKey);
+      allow create, update: if isAdmin() || validPublicLookupWrite(phoneKey);
       allow delete: if isAdmin();
     }
 
