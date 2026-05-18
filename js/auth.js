@@ -10,18 +10,12 @@ import {
 import { setMessage } from "./utils.js";
 
 const ADMIN_EMAILS = ["ma@ma.com"];
-const WAITING_SCREEN_EMAILS = [];
 
 const TARGETS = {
   admin: {
     label: "الإدارة",
     roles: ["admin"],
     redirect: "admin.html",
-  },
-  waiting: {
-    label: "شاشة الانتظار",
-    roles: ["admin", "waiting_screen"],
-    redirect: "waiting.html",
   },
 };
 
@@ -32,7 +26,6 @@ function normalizeEmail(email = "") {
 function getEmailRole(email) {
   const normalizedEmail = normalizeEmail(email);
   if (ADMIN_EMAILS.includes(normalizedEmail)) return "admin";
-  if (WAITING_SCREEN_EMAILS.includes(normalizedEmail)) return "waiting_screen";
   return null;
 }
 

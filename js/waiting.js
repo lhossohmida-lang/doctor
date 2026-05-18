@@ -1,4 +1,3 @@
-import { ensureRole, signOutUser } from "./auth.js";
 import { db, doc, onSnapshot } from "./firebase-config.js";
 import { formatArabicDate, getAlgiersDateKey } from "./utils.js";
 
@@ -20,7 +19,6 @@ function collectElements() {
   elements.lastNumber = document.getElementById("lastNumber");
   elements.waitingDate = document.getElementById("waitingDate");
   elements.soundToggle = document.getElementById("soundToggle");
-  elements.signOutButton = document.getElementById("signOutButton");
   elements.message = document.getElementById("waitingMessage");
 }
 
@@ -107,7 +105,7 @@ function subscribeQueue() {
   );
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   collectElements();
   updateSoundButton();
   loadVoices();
@@ -115,7 +113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }
 
-  await ensureRole(["admin", "waiting_screen"], "waiting");
   subscribeQueue();
 
   elements.soundToggle.addEventListener("click", () => {
@@ -125,5 +122,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!state.soundEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
   });
 
-  elements.signOutButton.addEventListener("click", () => signOutUser("waiting"));
 });
