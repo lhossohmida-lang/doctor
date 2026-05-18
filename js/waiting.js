@@ -39,11 +39,94 @@ function chooseArabicVoice() {
   );
 }
 
+function numberToArabicWords(number) {
+  const value = Number(number);
+  if (!Number.isFinite(value) || value <= 0) return String(number);
+
+  const ones = [
+    "",
+    "واحد",
+    "اثنين",
+    "ثلاثة",
+    "أربعة",
+    "خمسة",
+    "ستة",
+    "سبعة",
+    "ثمانية",
+    "تسعة",
+  ];
+  const teens = [
+    "عشرة",
+    "أحد عشر",
+    "اثنا عشر",
+    "ثلاثة عشر",
+    "أربعة عشر",
+    "خمسة عشر",
+    "ستة عشر",
+    "سبعة عشر",
+    "ثمانية عشر",
+    "تسعة عشر",
+  ];
+  const tens = [
+    "",
+    "",
+    "عشرون",
+    "ثلاثون",
+    "أربعون",
+    "خمسون",
+    "ستون",
+    "سبعون",
+    "ثمانون",
+    "تسعون",
+  ];
+  const hundreds = [
+    "",
+    "مئة",
+    "مئتان",
+    "ثلاث مئة",
+    "أربع مئة",
+    "خمس مئة",
+    "ست مئة",
+    "سبع مئة",
+    "ثمان مئة",
+    "تسع مئة",
+  ];
+
+  function belowHundred(current) {
+    if (current < 10) return ones[current];
+    if (current < 20) return teens[current - 10];
+    const one = current % 10;
+    const ten = Math.floor(current / 10);
+    return one ? `${ones[one]} و${tens[ten]}` : tens[ten];
+  }
+
+  function belowThousand(current) {
+    if (current < 100) return belowHundred(current);
+    const hundred = Math.floor(current / 100);
+    const rest = current % 100;
+    return rest ? `${hundreds[hundred]} و${belowHundred(rest)}` : hundreds[hundred];
+  }
+
+  if (value < 1000) return belowThousand(value);
+  if (value < 10000) {
+    const thousand = Math.floor(value / 1000);
+    const rest = value % 1000;
+    const thousandText = thousand === 1 ? "ألف" : `${ones[thousand]} آلاف`;
+    return rest ? `${thousandText} و${belowThousand(rest)}` : thousandText;
+  }
+
+  return String(value);
+}
+
+function buildCallMessage(number) {
+  return `الرقم ${numberToArabicWords(number)} يتفضل`;
+}
+
 function speakNumber(number) {
   if (!state.soundEnabled || !window.speechSynthesis || !number) return;
 
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(`الرقم ${number}، يرجى التفضل إلى المكتب`);
+  const utterance = new SpeechSynthesisUtterance(buildCallMessage(number));
   utterance.lang = "ar-DZ";
   utterance.rate = 0.86;
   utterance.pitch = 1;
@@ -69,7 +152,7 @@ function renderQueue(data = {}) {
   elements.nextNumber.textContent = next;
   elements.waitingCount.textContent = waiting;
   elements.lastNumber.textContent = last;
-  elements.callText.textContent = current ? `الرقم ${current}، يرجى التفضل إلى المكتب` : "في انتظار أول نداء";
+  elements.callText.textContent = current ? buildCallMessage(current) : "في انتظار أول نداء";
 
   if (String(previousNumber) !== String(current)) animateNumber();
 
