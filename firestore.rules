@@ -16,12 +16,22 @@ service cloud.firestore {
         && userDoc().data.role == role;
     }
 
+    function hasAdminEmail() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email == "ma@ma.com";
+    }
+
+    function hasWaitingScreenEmail() {
+      return false;
+    }
+
     function isAdmin() {
-      return hasRole("admin");
+      return hasRole("admin") || hasAdminEmail();
     }
 
     function isWaitingScreen() {
-      return hasRole("waiting_screen") || isAdmin();
+      return hasRole("waiting_screen") || hasWaitingScreenEmail() || isAdmin();
     }
 
     function isPublicRegistration() {

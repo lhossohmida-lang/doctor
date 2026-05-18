@@ -9,6 +9,9 @@ import {
 } from "./firebase-config.js";
 import { setMessage } from "./utils.js";
 
+const ADMIN_EMAILS = ["ma@ma.com"];
+const WAITING_SCREEN_EMAILS = [];
+
 const TARGETS = {
   admin: {
     label: "الإدارة",
@@ -22,14 +25,28 @@ const TARGETS = {
   },
 };
 
+function normalizeEmail(email = "") {
+  return String(email).trim().toLowerCase();
+}
+
+function getEmailRole(email) {
+  const normalizedEmail = normalizeEmail(email);
+  if (ADMIN_EMAILS.includes(normalizedEmail)) return "admin";
+  if (WAITING_SCREEN_EMAILS.includes(normalizedEmail)) return "waiting_screen";
+  return null;
+}
+
 function getTarget() {
   const params = new URLSearchParams(window.location.search);
   const target = params.get("target") || "admin";
   return TARGETS[target] ? target : "admin";
 }
 
-async function getUserRole(uid) {
-  const userSnapshot = await getDoc(doc(db, "users", uid));
+async function getUserRole(user) {
+  const emailRole = getEmailRole(user.email);
+  if (emailRole) return emailRole;
+
+  const userSnapshot = await getDoc(doc(db, "users", user.uid));
   return userSnapshot.exists() ? userSnapshot.data().role : null;
 }
 
@@ -50,7 +67,7 @@ export function ensureRole(allowedRoles, target = "admin") {
       }
 
       try {
-        const role = await getUserRole(user.uid);
+        const role = await getUserRole(user);
         if (!role || !allowedRoles.includes(role)) {
           await signOut(auth);
           redirectToLogin(target, "permission_denied");
@@ -117,7 +134,7 @@ function configureLoginPage() {
         emailInput.value.trim(),
         passwordInput.value,
       );
-      const role = await getUserRole(credentials.user.uid);
+      const role = await getUserRole(credentials.user);
 
       if (!role || !targetConfig.roles.includes(role)) {
         await signOut(auth);
