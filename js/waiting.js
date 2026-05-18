@@ -3,9 +3,10 @@ import { formatArabicDate, getAlgiersDateKey } from "./utils.js";
 
 const state = {
   dateKey: getAlgiersDateKey(),
-  soundEnabled: localStorage.getItem("doctorQueueSound") === "on",
+  soundEnabled: false,
   hasFirstSnapshot: false,
   lastToken: sessionStorage.getItem("doctorQueueLastCallToken") || "",
+  currentNumber: 0,
   voices: [],
 };
 
@@ -23,7 +24,7 @@ function collectElements() {
 }
 
 function updateSoundButton() {
-  elements.soundToggle.textContent = state.soundEnabled ? "كتم الصوت" : "تشغيل الصوت";
+  elements.soundToggle.textContent = state.soundEnabled ? "كتم الصوت" : "تفعيل الصوت";
 }
 
 function loadVoices() {
@@ -122,17 +123,33 @@ function buildCallMessage(number) {
   return `الرقم ${numberToArabicWords(number)} يتفضل`;
 }
 
-function speakNumber(number) {
-  if (!state.soundEnabled || !window.speechSynthesis || !number) return;
+function speakText(text, force = false) {
+  if ((!state.soundEnabled && !force) || !text) return false;
+  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+    elements.message.textContent = "الصوت غير مدعوم في هذا المتصفح.";
+    return false;
+  }
 
+  loadVoices();
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(buildCallMessage(number));
+  window.speechSynthesis.resume?.();
+
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ar-DZ";
-  utterance.rate = 0.86;
+  utterance.rate = 0.82;
   utterance.pitch = 1;
   const voice = chooseArabicVoice();
   if (voice) utterance.voice = voice;
+  utterance.onerror = () => {
+    elements.message.textContent = "تعذر تشغيل الصوت. اضغط تشغيل الصوت مرة أخرى.";
+  };
   window.speechSynthesis.speak(utterance);
+  return true;
+}
+
+function speakNumber(number, force = false) {
+  if (!number) return false;
+  return speakText(buildCallMessage(number), force);
 }
 
 function animateNumber() {
@@ -148,6 +165,7 @@ function renderQueue(data = {}) {
   const token = data.callToken || "";
 
   const previousNumber = elements.calledNumber.textContent;
+  state.currentNumber = current;
   elements.calledNumber.textContent = current || 0;
   elements.nextNumber.textContent = next;
   elements.waitingCount.textContent = waiting;
@@ -200,9 +218,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   elements.soundToggle.addEventListener("click", () => {
     state.soundEnabled = !state.soundEnabled;
-    localStorage.setItem("doctorQueueSound", state.soundEnabled ? "on" : "off");
     updateSoundButton();
-    if (!state.soundEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
+
+    if (!state.soundEnabled) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      elements.message.textContent = "تم كتم الصوت.";
+      return;
+    }
+
+    elements.message.textContent = "تم تشغيل الصوت. سيُنطق كل رقم جديد.";
+    if (state.currentNumber) {
+      speakNumber(state.currentNumber, true);
+    } else {
+      speakText("تم تشغيل الصوت", true);
+    }
   });
 
 });
