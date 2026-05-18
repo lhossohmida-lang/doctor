@@ -22,16 +22,8 @@ service cloud.firestore {
         && request.auth.token.email == "ma@ma.com";
     }
 
-    function hasWaitingScreenEmail() {
-      return false;
-    }
-
     function isAdmin() {
       return hasRole("admin") || hasAdminEmail();
-    }
-
-    function isWaitingScreen() {
-      return hasRole("waiting_screen") || hasWaitingScreenEmail() || isAdmin();
     }
 
     function isPublicRegistration() {

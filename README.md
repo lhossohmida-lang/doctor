@@ -36,6 +36,7 @@
     qr.js
     utils.js
   firebase.json
+  firestore.indexes.json
   firestore.rules
   README.md
 ```
@@ -114,6 +115,20 @@ firebase deploy --only firestore:rules
 
 ```bash
 firebase deploy --only firestore:rules --project doctor-14c38
+```
+
+## رفع فهارس Firestore
+
+تم تضمين ملف `firestore.indexes.json` لفهارس زبائن العيادة. لنشر الفهارس من Firebase CLI:
+
+```bash
+firebase deploy --only firestore:indexes
+```
+
+أو لنشر القواعد والفهارس معًا:
+
+```bash
+firebase deploy --only firestore
 ```
 
 ## التشغيل محليًا
