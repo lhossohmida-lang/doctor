@@ -140,9 +140,11 @@ async function registerPublicPatient(phone) {
     const publicQueueRef = refs.publicQueue(dateKey);
     const counterSnapshot = await transaction.get(counterRef);
     const publicQueueSnapshot = await transaction.get(publicQueueRef);
-    const lastNumber = Number(counterSnapshot.exists() ? counterSnapshot.data().lastNumber || 0 : 0);
-    const queueNumber = lastNumber + 1;
     const queueData = publicQueueSnapshot.exists() ? publicQueueSnapshot.data() : {};
+    const counterLastNumber = Number(counterSnapshot.exists() ? counterSnapshot.data().lastNumber || 0 : 0);
+    const publicLastNumber = Number(queueData.lastNumber || 0);
+    const lastNumber = Math.max(counterLastNumber, publicLastNumber);
+    const queueNumber = lastNumber + 1;
     const currentCalledNumber = Number(queueData.currentCalledNumber || 0);
     const waitingCount = Number(queueData.waitingCount || 0) + 1;
 
@@ -247,7 +249,9 @@ async function findOrRegisterByPhone(phone) {
     bookingCodes.forEach((bookingCode) => subscribeTicket(state.dateKey, bookingCode));
   } catch (error) {
     console.error(error);
-    setMessage(elements.message, "تعذر إنشاء أو عرض رقم الدور. حاول مرة أخرى.", "error");
+    const permissionHint =
+      error?.code === "permission-denied" ? " تأكد من نشر قواعد Firestore الجديدة." : "";
+    setMessage(elements.message, `تعذر إنشاء أو عرض رقم الدور. حاول مرة أخرى.${permissionHint}`, "error");
   } finally {
     elements.submitButton.disabled = false;
   }

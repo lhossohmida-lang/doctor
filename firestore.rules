@@ -35,7 +35,7 @@ service cloud.firestore {
     }
 
     function isPublicRegistration() {
-      return request.auth == null;
+      return true;
     }
 
     function publicAppointmentFields() {
@@ -86,11 +86,20 @@ service cloud.firestore {
       return isPublicRegistration()
         && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
         && request.resource.data.date == date
-        && request.resource.data.lastNumber == 1
+        && (
+          (
+            !exists(/databases/$(database)/documents/publicQueue/$(date))
+            && request.resource.data.lastNumber == 1
+          )
+          || (
+            exists(/databases/$(database)/documents/publicQueue/$(date))
+            && request.resource.data.lastNumber == get(/databases/$(database)/documents/publicQueue/$(date)).data.lastNumber + 1
+          )
+        )
         && request.resource.data.lastPatientId is string
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == 1;
+        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == request.resource.data.lastNumber;
     }
 
     function validPublicQueueCounterUpdate(date) {
@@ -151,11 +160,11 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(publicQueueFields())
         && request.resource.data.date == date
         && request.resource.data.currentCalledNumber == 0
-        && request.resource.data.lastNumber == 1
+        && request.resource.data.lastNumber == getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber
         && request.resource.data.waitingCount == 1
-        && request.resource.data.nextNumber == 1
+        && request.resource.data.nextNumber == request.resource.data.lastNumber
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == 1;
+        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber > 0;
     }
 
     function validPublicQueueUpdate(date) {
