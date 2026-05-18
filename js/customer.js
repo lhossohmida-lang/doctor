@@ -1,7 +1,21 @@
-import { db, doc, getDoc, onSnapshot } from "./firebase-config.js";
 import {
+  arrayUnion,
+  collection,
+  db,
+  doc,
+  getDoc,
+  onSnapshot,
+  runTransaction,
+  serverTimestamp,
+} from "./firebase-config.js";
+import { renderQrCode } from "./qr.js";
+import {
+  buildTrackingUrl,
+  escapeHtml,
   formatArabicDate,
+  generateBookingCode,
   getAlgiersDateKey,
+  normalizePhone,
   phoneLookupKey,
   setMessage,
   STATUS_LABELS,
@@ -19,9 +33,20 @@ const elements = {};
 function collectElements() {
   elements.form = document.getElementById("phoneLookupForm");
   elements.phone = document.getElementById("lookupPhone");
+  elements.submitButton = document.getElementById("customerSubmitButton");
   elements.message = document.getElementById("customerMessage");
   elements.results = document.getElementById("trackingResults");
+  elements.printArea = document.getElementById("customerPrintArea");
 }
+
+const refs = {
+  queueCounter: (dateKey) => doc(db, "queueCounters", dateKey),
+  publicQueue: (dateKey) => doc(db, "publicQueue", dateKey),
+  patients: (dateKey) => collection(db, "appointments", dateKey, "patients"),
+  patient: (dateKey, patientId) => doc(db, "appointments", dateKey, "patients", patientId),
+  publicTicket: (dateKey, bookingCode) => doc(db, "publicTickets", dateKey, "tickets", bookingCode),
+  phoneLookup: (dateKey, key) => doc(db, "publicLookups", dateKey, "phones", key),
+};
 
 function unsubscribeTickets() {
   state.unsubscribers.forEach((unsubscribe) => unsubscribe());
@@ -30,7 +55,7 @@ function unsubscribeTickets() {
 }
 
 function subscribeQueue(dateKey) {
-  const unsubscribe = onSnapshot(doc(db, "publicQueue", dateKey), (snapshot) => {
+  const unsubscribe = onSnapshot(refs.publicQueue(dateKey), (snapshot) => {
     state.queue = snapshot.exists() ? snapshot.data() : { currentCalledNumber: 0, waitingCount: 0 };
     renderTickets();
   });
@@ -38,7 +63,7 @@ function subscribeQueue(dateKey) {
 }
 
 function subscribeTicket(dateKey, bookingCode) {
-  const unsubscribe = onSnapshot(doc(db, "publicTickets", dateKey, "tickets", bookingCode), (snapshot) => {
+  const unsubscribe = onSnapshot(refs.publicTicket(dateKey, bookingCode), (snapshot) => {
     if (snapshot.exists()) {
       state.tickets.set(bookingCode, snapshot.data());
       setMessage(elements.message, "");
@@ -70,6 +95,14 @@ function renderTickets() {
         </div>
         <div class="queue-number">${ticket.queueNumber || "-"}</div>
       </div>
+      <div class="customer-ticket">
+        <div class="customer-qr" data-customer-qr></div>
+        <div class="ticket-copy">
+          <span>رقم الحجز</span>
+          <strong>${escapeHtml(ticket.bookingCode || "-")}</strong>
+          <button class="btn btn-secondary" type="button" data-print-ticket>طباعة البطاقة</button>
+        </div>
+      </div>
       <div class="tracking-grid">
         <div class="info-tile">
           <span>حالة الموعد</span>
@@ -87,11 +120,104 @@ function renderTickets() {
       <p class="customer-note">يتم تحديث هذه البطاقة تلقائيًا عند تغير الدور.</p>
     `;
     card.querySelector(".tracking-name").textContent = ticket.fullName || "زبون العيادة";
+    renderQrCode(card.querySelector("[data-customer-qr]"), ticket.qrValue || ticket.bookingCode, 128);
+    card.querySelector("[data-print-ticket]").addEventListener("click", () => printCustomerTicket(ticket));
     elements.results.append(card);
   });
 }
 
-async function findByPhone(phone) {
+async function registerPublicPatient(phone) {
+  const dateKey = getAlgiersDateKey();
+  const cleanPhone = normalizePhone(phone);
+  const key = phoneLookupKey(cleanPhone);
+  const patientDoc = doc(refs.patients(dateKey));
+  const patientId = patientDoc.id;
+  const bookingCode = generateBookingCode(dateKey);
+  const qrValue = buildTrackingUrl(dateKey, bookingCode);
+
+  return runTransaction(db, async (transaction) => {
+    const counterRef = refs.queueCounter(dateKey);
+    const publicQueueRef = refs.publicQueue(dateKey);
+    const counterSnapshot = await transaction.get(counterRef);
+    const publicQueueSnapshot = await transaction.get(publicQueueRef);
+    const lastNumber = Number(counterSnapshot.exists() ? counterSnapshot.data().lastNumber || 0 : 0);
+    const queueNumber = lastNumber + 1;
+    const queueData = publicQueueSnapshot.exists() ? publicQueueSnapshot.data() : {};
+    const currentCalledNumber = Number(queueData.currentCalledNumber || 0);
+    const waitingCount = Number(queueData.waitingCount || 0) + 1;
+
+    const patientData = {
+      patientId,
+      bookingCode,
+      fullName: "زبون العيادة",
+      phone: cleanPhone,
+      phoneKey: key,
+      queueNumber,
+      disease: "",
+      amountPaid: 0,
+      paymentStatus: "unpaid",
+      status: "waiting",
+      qrValue,
+      date: dateKey,
+      source: "customer",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const publicTicket = {
+      patientId,
+      bookingCode,
+      fullName: "زبون العيادة",
+      phoneKey: key,
+      queueNumber,
+      status: "waiting",
+      qrValue,
+      date: dateKey,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    transaction.set(patientDoc, patientData);
+    transaction.set(refs.publicTicket(dateKey, bookingCode), publicTicket);
+    transaction.set(
+      refs.phoneLookup(dateKey, key),
+      {
+        phoneKey: key,
+        bookingCodes: arrayUnion(bookingCode),
+        lastBookingCode: bookingCode,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    transaction.set(
+      counterRef,
+      {
+        date: dateKey,
+        lastNumber: queueNumber,
+        lastPatientId: patientId,
+        ...(counterSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    transaction.set(
+      publicQueueRef,
+      {
+        date: dateKey,
+        currentCalledNumber,
+        lastNumber: queueNumber,
+        waitingCount,
+        nextNumber: queueData.nextNumber || queueNumber,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return { ...publicTicket, phone: cleanPhone };
+  });
+}
+
+async function findOrRegisterByPhone(phone) {
   const key = phoneLookupKey(phone);
   if (!key) {
     setMessage(elements.message, "يرجى إدخال رقم هاتف صحيح.", "error");
@@ -100,29 +226,48 @@ async function findByPhone(phone) {
 
   unsubscribeTickets();
   state.dateKey = getAlgiersDateKey();
-  setMessage(elements.message, "جاري البحث عن موعد اليوم...");
+  setMessage(elements.message, "جاري التحقق من رقمك...");
   elements.results.replaceChildren();
+  elements.submitButton.disabled = true;
 
   try {
-    const lookupSnapshot = await getDoc(doc(db, "publicLookups", state.dateKey, "phones", key));
-    if (!lookupSnapshot.exists()) {
-      setMessage(elements.message, "لا يوجد موعد مسجل اليوم بهذا الرقم.", "error");
-      return;
-    }
+    const lookupSnapshot = await getDoc(refs.phoneLookup(state.dateKey, key));
+    let bookingCodes = lookupSnapshot.exists() ? lookupSnapshot.data().bookingCodes || [] : [];
 
-    const bookingCodes = lookupSnapshot.data().bookingCodes || [];
     if (!bookingCodes.length) {
-      setMessage(elements.message, "لا يوجد موعد مسجل اليوم بهذا الرقم.", "error");
-      return;
+      setMessage(elements.message, "لم نجد رقمًا لهذا الهاتف اليوم. جاري إنشاء دور جديد...");
+      const ticket = await registerPublicPatient(phone);
+      bookingCodes = [ticket.bookingCode];
+      setMessage(elements.message, `تم إنشاء رقمك بنجاح. رقم الدور ${ticket.queueNumber}.`, "success");
+    } else {
+      setMessage(elements.message, "هذا الهاتف مسجل اليوم. تم عرض بطاقتك.", "success");
     }
 
     subscribeQueue(state.dateKey);
     bookingCodes.forEach((bookingCode) => subscribeTicket(state.dateKey, bookingCode));
-    setMessage(elements.message, "تم العثور على موعدك.", "success");
   } catch (error) {
     console.error(error);
-    setMessage(elements.message, "تعذر البحث الآن. حاول مرة أخرى.", "error");
+    setMessage(elements.message, "تعذر إنشاء أو عرض رقم الدور. حاول مرة أخرى.", "error");
+  } finally {
+    elements.submitButton.disabled = false;
   }
+}
+
+function printCustomerTicket(ticket) {
+  elements.printArea.innerHTML = `
+    <article class="customer-print-ticket">
+      <h2>عيادة الطبيب</h2>
+      <div class="print-number">${escapeHtml(ticket.queueNumber || "-")}</div>
+      <div class="print-meta">
+        <strong>${escapeHtml(ticket.fullName || "زبون العيادة")}</strong>
+        <span>التاريخ: ${escapeHtml(formatArabicDate(ticket.date || state.dateKey))}</span>
+        <span>رقم الحجز: ${escapeHtml(ticket.bookingCode || "-")}</span>
+      </div>
+      <div id="customerPrintQr"></div>
+    </article>
+  `;
+  renderQrCode(document.getElementById("customerPrintQr"), ticket.qrValue || ticket.bookingCode, 170);
+  window.setTimeout(() => window.print(), 120);
 }
 
 function initFromQr() {
@@ -146,6 +291,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
-    findByPhone(elements.phone.value);
+    findOrRegisterByPhone(elements.phone.value);
   });
 });

@@ -71,6 +71,40 @@
   gap: 10px;
 }
 
+.customer-ticket {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 14px;
+}
+
+.customer-qr {
+  display: grid;
+  width: 132px;
+  min-height: 132px;
+  place-items: center;
+}
+
+.ticket-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.ticket-copy span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.ticket-copy strong {
+  overflow-wrap: anywhere;
+  color: var(--blue-900);
+  font-size: 1.1rem;
+}
+
 .info-tile {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -110,5 +144,64 @@
 
   .tracking-grid {
     grid-template-columns: 1fr;
+  }
+
+  .customer-ticket {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+}
+
+#customerPrintArea {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #customerPrintArea,
+  #customerPrintArea * {
+    visibility: visible !important;
+  }
+
+  #customerPrintArea {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    padding: 18mm;
+    background: #fff;
+  }
+
+  .customer-print-ticket {
+    display: grid;
+    min-height: 160mm;
+    align-content: center;
+    justify-items: center;
+    border: 2px solid #102a43;
+    border-radius: 8px;
+    padding: 12mm;
+    color: #102a43;
+    text-align: center;
+  }
+
+  .customer-print-ticket h2 {
+    font-size: 26pt;
+    margin-bottom: 8mm;
+  }
+
+  .customer-print-ticket .print-number {
+    font-size: 88pt;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .customer-print-ticket .print-meta {
+    display: grid;
+    gap: 3mm;
+    margin: 8mm 0;
+    font-size: 15pt;
   }
 }

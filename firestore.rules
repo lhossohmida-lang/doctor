@@ -24,6 +24,143 @@ service cloud.firestore {
       return hasRole("waiting_screen") || isAdmin();
     }
 
+    function isPublicRegistration() {
+      return request.auth == null;
+    }
+
+    function publicAppointmentFields() {
+      return [
+        "patientId",
+        "bookingCode",
+        "fullName",
+        "phone",
+        "phoneKey",
+        "queueNumber",
+        "disease",
+        "amountPaid",
+        "paymentStatus",
+        "status",
+        "qrValue",
+        "date",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ];
+    }
+
+    function validPublicAppointmentCreate(date, patientId) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(publicAppointmentFields())
+        && request.resource.data.patientId == patientId
+        && request.resource.data.date == date
+        && request.resource.data.fullName == "زبون العيادة"
+        && request.resource.data.phone is string
+        && request.resource.data.phoneKey is string
+        && request.resource.data.phoneKey.matches("^[0-9]{6,18}$")
+        && request.resource.data.bookingCode is string
+        && request.resource.data.queueNumber is int
+        && request.resource.data.queueNumber > 0
+        && request.resource.data.disease == ""
+        && request.resource.data.amountPaid == 0
+        && request.resource.data.paymentStatus == "unpaid"
+        && request.resource.data.status == "waiting"
+        && request.resource.data.source == "customer"
+        && request.resource.data.qrValue is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == request.resource.data.queueNumber
+        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastPatientId == patientId;
+    }
+
+    function validPublicQueueCounterCreate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
+        && request.resource.data.date == date
+        && request.resource.data.lastNumber == 1
+        && request.resource.data.lastPatientId is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == 1;
+    }
+
+    function validPublicQueueCounterUpdate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(["date", "lastNumber", "lastPatientId", "createdAt", "updatedAt"])
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.lastNumber == resource.data.lastNumber + 1
+        && request.resource.data.lastPatientId is string
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.lastPatientId)).data.queueNumber == request.resource.data.lastNumber;
+    }
+
+    function validPublicTicketCreate(date, bookingCode) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly([
+          "patientId",
+          "bookingCode",
+          "fullName",
+          "phoneKey",
+          "queueNumber",
+          "status",
+          "qrValue",
+          "date",
+          "createdAt",
+          "updatedAt"
+        ])
+        && request.resource.data.bookingCode == bookingCode
+        && request.resource.data.date == date
+        && request.resource.data.fullName == "زبون العيادة"
+        && request.resource.data.phoneKey is string
+        && request.resource.data.phoneKey.matches("^[0-9]{6,18}$")
+        && request.resource.data.queueNumber is int
+        && request.resource.data.status == "waiting"
+        && request.resource.data.qrValue is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/appointments/$(date)/patients/$(request.resource.data.patientId)).data.bookingCode == bookingCode;
+    }
+
+    function validPublicLookupWrite(date, phoneKey) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(["phoneKey", "bookingCodes", "lastBookingCode", "updatedAt"])
+        && request.resource.data.phoneKey == phoneKey
+        && request.resource.data.bookingCodes is list
+        && request.resource.data.bookingCodes.size() <= 25
+        && request.resource.data.lastBookingCode is string
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/publicTickets/$(date)/tickets/$(request.resource.data.lastBookingCode)).data.phoneKey == phoneKey;
+    }
+
+    function publicQueueFields() {
+      return ["date", "currentCalledNumber", "lastNumber", "waitingCount", "nextNumber", "callToken", "updatedAt"];
+    }
+
+    function validPublicQueueCreate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(publicQueueFields())
+        && request.resource.data.date == date
+        && request.resource.data.currentCalledNumber == 0
+        && request.resource.data.lastNumber == 1
+        && request.resource.data.waitingCount == 1
+        && request.resource.data.nextNumber == 1
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == 1;
+    }
+
+    function validPublicQueueUpdate(date) {
+      return isPublicRegistration()
+        && request.resource.data.keys().hasOnly(publicQueueFields())
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.currentCalledNumber == resource.data.currentCalledNumber
+        && request.resource.data.lastNumber == resource.data.lastNumber + 1
+        && request.resource.data.waitingCount == resource.data.waitingCount + 1
+        && (!("nextNumber" in resource.data) || resource.data.nextNumber == null || request.resource.data.nextNumber == resource.data.nextNumber)
+        && (!("callToken" in resource.data) || request.resource.data.callToken == resource.data.callToken)
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/queueCounters/$(date)).data.lastNumber == request.resource.data.lastNumber;
+    }
+
     match /users/{uid} {
       allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow list: if isAdmin();
@@ -34,26 +171,39 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    match /queueCounters/{date} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAdmin() || validPublicQueueCounterCreate(date);
+      allow update: if isAdmin() || validPublicQueueCounterUpdate(date);
+      allow delete: if isAdmin();
+    }
+
     match /appointments/{date}/patients/{patientId} {
-      allow read, write: if isAdmin();
+      allow read, update, delete: if isAdmin();
+      allow create: if isAdmin() || validPublicAppointmentCreate(date, patientId);
     }
 
     match /publicQueue/{date} {
       allow get: if true;
       allow list: if false;
-      allow write: if isAdmin();
+      allow create: if isAdmin() || validPublicQueueCreate(date);
+      allow update: if isAdmin() || validPublicQueueUpdate(date);
+      allow delete: if isAdmin();
     }
 
     match /publicTickets/{date}/tickets/{bookingCode} {
       allow get: if true;
       allow list: if false;
-      allow write: if isAdmin();
+      allow create: if isAdmin() || validPublicTicketCreate(date, bookingCode);
+      allow update, delete: if isAdmin();
     }
 
     match /publicLookups/{date}/phones/{phoneKey} {
       allow get: if true;
       allow list: if false;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin() || validPublicLookupWrite(date, phoneKey);
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {

@@ -99,6 +99,7 @@ function collectElements() {
 
 const refs = {
   counter: (dateKey) => doc(db, "dailyCounters", dateKey),
+  queueCounter: (dateKey) => doc(db, "queueCounters", dateKey),
   publicQueue: (dateKey) => doc(db, "publicQueue", dateKey),
   patients: (dateKey) => collection(db, "appointments", dateKey, "patients"),
   patient: (dateKey, patientId) => doc(db, "appointments", dateKey, "patients", patientId),
@@ -352,11 +353,13 @@ async function registerPatient(event) {
     const qrValue = buildTrackingUrl(dateKey, bookingCode);
 
     const ticket = await runTransaction(db, async (transaction) => {
+      const queueCounterSnapshot = await transaction.get(refs.queueCounter(dateKey));
       const counterSnapshot = await transaction.get(refs.counter(dateKey));
       const counterData = counterSnapshot.exists()
         ? counterSnapshot.data()
         : { currentCalledNumber: 0, currentPatientId: null, lastNumber: 0 };
-      const queueNumber = Number(counterData.lastNumber || 0) + 1;
+      const queueCounterData = queueCounterSnapshot.exists() ? queueCounterSnapshot.data() : { lastNumber: 0 };
+      const queueNumber = Math.max(Number(counterData.lastNumber || 0), Number(queueCounterData.lastNumber || 0)) + 1;
 
       const patientData = {
         patientId,
@@ -395,6 +398,17 @@ async function registerPatient(event) {
           phoneKey: lookupKey,
           bookingCodes: arrayUnion(bookingCode),
           lastBookingCode: bookingCode,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      transaction.set(
+        refs.queueCounter(dateKey),
+        {
+          date: dateKey,
+          lastNumber: queueNumber,
+          lastPatientId: patientId,
+          ...(queueCounterSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
           updatedAt: serverTimestamp(),
         },
         { merge: true },

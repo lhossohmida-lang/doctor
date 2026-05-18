@@ -3,9 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>متابعة الدور | عيادة الطبيب</title>
+    <title>رقم الدور | عيادة الطبيب</title>
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="css/customer.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
     <script type="module" src="js/customer.js"></script>
   </head>
   <body class="customer-page">
@@ -13,19 +14,20 @@
       <section class="customer-card">
         <a class="back-link" href="index.html">الرئيسية</a>
         <div class="brand-mark small" aria-hidden="true">+</div>
-        <p class="eyebrow">متابعة الموعد</p>
-        <h1>اعرف دورك اليوم</h1>
+        <p class="eyebrow">تسجيل ومتابعة الدور</p>
+        <h1>خذ رقمك اليوم</h1>
         <form id="phoneLookupForm" class="lookup-form">
           <label>
             رقم الهاتف
             <input id="lookupPhone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="0550000000" />
           </label>
-          <button class="btn btn-primary full" type="submit">عرض الموعد</button>
+          <button id="customerSubmitButton" class="btn btn-primary full" type="submit">الحصول على رقم الدور</button>
         </form>
         <p id="customerMessage" class="form-message" role="status"></p>
       </section>
 
       <section id="trackingResults" class="tracking-results" aria-live="polite"></section>
+      <section id="customerPrintArea" aria-hidden="true"></section>
     </main>
   </body>
 </html>
